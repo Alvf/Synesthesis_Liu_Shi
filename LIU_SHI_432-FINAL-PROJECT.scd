@@ -200,8 +200,7 @@ s.sync;
 (
 ~rbuf1 = Buffer.read(s, "./IMreverbs/Right Glass Triangle.wav".resolveRelative);
 ~size1 = 2048;
-)
-(
+s.de
 ~bufsize1 = PartConv.calcBufSize(~size1, ~rbuf1);
 ~irspec1 = Buffer.alloc(s, ~bufsize1, 2);
 ~irspec1.preparePartConv(~rbuf1, ~size1);
