@@ -11,12 +11,10 @@
  * Given python-processed image data, this scd uses some predefined synths to generate a corresponding soundscape.
 */
 
-
 (
-s.reboot;
 s.waitForBoot {
-
 /* --- variables and user-inputs here */
+~rbuf1 = Buffer.read(s, "./IMreverbs/Right Glass Triangle.wav".resolveRelative);
 
 
 /* --- SynthDefs and other asynchronous stuff (loading files to buffers, evaluating code in related .scd files) ---*/
@@ -109,7 +107,6 @@ SynthDef(\toy_piano, {
 	DetectSilence.ar(snd, doneAction:2);
 }
 ).add;
-
 // Hue to synth: the synth-ification of RGB
 SynthDef(\H_synth, {
 		|out = 0, amp = 0.75, freq = 520, red = 0.5, green = 0.5, blue = 0.5, len = 1|
@@ -144,9 +141,13 @@ SynthDef(\H_synth, {
 
 		var blueWeight = blue / rgbTotal;
 
-		// Red is sawtooth
+		// Red is guitar-y
 		var redWeight = red / rgbTotal;
-		var redSound = Saw.ar(freq);
+
+		var ramod1 = SinOsc.ar(freq:0.5*freq, mul:0.5, add:0.5);
+
+		var rcarrier = SinOsc.ar(freq:freq, mul:amp)*ramod1;
+		var redSound = rcarrier;
 
 		// Green is growl
 
@@ -180,30 +181,13 @@ SynthDef(\H_synth, {
 	}
 	).add;
 
+// Fiddly reverbers need to sync up with some impulse response buffer reading
+	s.sync;
 
-	// Process the xml into actual variables:
-	  // Picking the 3 top hue clusters (HSV, position, radius)
-      // H: Instrument type/waveform
-      // S: Sound complexity/life (FM/Convolution/etc)
-      // V: Filter (hi-pass/lo-pass)
-      // Position: Pan2 and freeverb
-      // Variance: Wideness/reverb/panning ratios
-
-s.sync;
-
-// CREATE THE SOUNDSCAPE
-
-}
-
-)
-
-(
-~rbuf1 = Buffer.read(s, "./IMreverbs/Right Glass Triangle.wav".resolveRelative);
-~size1 = 2048;
-s.de
-~bufsize1 = PartConv.calcBufSize(~size1, ~rbuf1);
-~irspec1 = Buffer.alloc(s, ~bufsize1, 2);
-~irspec1.preparePartConv(~rbuf1, ~size1);
+	~size1 = 2048;
+	~bufsize1 = PartConv.calcBufSize(~size1, ~rbuf1);
+	~irspec1 = Buffer.alloc(s, ~bufsize1, 2);
+	~irspec1.preparePartConv(~rbuf1, ~size1);
 SynthDef(\convFX1,
 	{|out = 0, in = 21, mix = 0.5|
 		var inSig = In.ar(in,2);
@@ -213,11 +197,26 @@ SynthDef(\convFX1,
 		Out.ar(out, [sig, delayed]);
 	}
 ).add;
+
+	// Process the xml into actual variables:
+	  // Picking the 3 top hue clusters (HSV, position, radius)
+      // H: Instrument type/waveform
+      // S: Sound complexity/life (FM/Convolution/etc)
+      // V: Filter (hi-pass/lo-pass)
+      // Position: Pan2 and freeverb
+      // Variance: Wideness/reverb/panning ratios
+
+	s.sync;
+
+// CREATE THE SOUNDSCAPE
+
+}
 )
+
 
 Synth(\convFX1);
 (
 // Synth(\steeldrum,[\out,21,\amp,4]);
 // Synth(\toy_piano,[\out,21,\amp,0.35]);
-Synth(\H_synth,[\green,100,\red,0,\blue,200,\out,21])
+Synth(\H_synth,[\green,10,\red,0,\blue,00,\out,21])
 )
