@@ -110,7 +110,7 @@ SynthDef(\toy_piano, {
 ).add;
 // Hue to synth: the synth-ification of RGB
 SynthDef(\H_synth, {
-		|out = 0, amp = 0.75, freq = 520, red = 0.5, green = 0.5, blue = 0.5, len = 1, pan = 0.5|
+		|out = 0, amp = 0.75, freq = 520, red = 0.5, green = 0.5, blue = 0.5, len = 1, pan = 0.5, lmuf = 6, hmuf = 6|
 		var rgbTotal = red + green + blue;
 
 		// Blue is steeldrum
@@ -119,26 +119,14 @@ SynthDef(\H_synth, {
 		var fmod11 = SinOsc.ar(freq:10*freq, mul:freq*10);
 		var fmod1 = SinOsc.ar(freq:2*freq+fmod11, mul:freq*0.75);
 		var fmod2 = SinOsc.ar(freq:3*freq, mul:freq/2);
-		var carrier1 = SinOsc.ar(freq:freq+fmod1, mul:amp/2);
-		var carrier2 = SinOsc.ar(freq:4*freq+fmod2, mul:amp/2);
+		var carrier1 = SinOsc.ar(freq:freq+fmod1, mul:amp);
+		var carrier2 = SinOsc.ar(freq:4*freq+fmod2, mul:amp);
 
 		var env1 = Env.new([0,1,0.75,0],[0.01,0.2,0.39,0.4]*len);
 		var env2 = Env.new([0,1,0.75,0],[0.01,0.3,0.39,0.3]*len);
 		var cling = LPF.ar((carrier1*env1.kr())+(carrier2*env2.kr()),freq);
 
-		// clunk attack
-		var cfmod1 = SinOsc.ar(freq:3.17*freq, mul:freq/1);
-		var cfmod2 = SinOsc.ar(freq:4.02*freq, mul:freq/2);
-		var cfmod3 = SinOsc.ar(freq:7.15*freq, mul:freq/3);
-		var ccarrier1 = SinOsc.ar(freq:freq+cfmod1, mul:amp*0.2*0.1);
-		var ccarrier2 = SinOsc.ar(freq:freq+cfmod2, mul:amp*0.5*0.1);
-		var ccarrier3 = SinOsc.ar(freq:freq+cfmod2, mul:amp*0.3*0.1);
-
-		var cenv = Env.perc();
-		var clunk = Decay2.ar((ccarrier1+ccarrier2+ccarrier3)*cenv.kr());
-
-		//combinnig the two
-		var blueSound = Mix.ar([cling,clunk]);
+		var blueSound = cling;
 
 		var blueWeight = blue / rgbTotal;
 
@@ -191,8 +179,9 @@ SynthDef(\H_synth, {
 		var intSound = (blueSound*blueWeight) + (redSound*redWeight) + (greenSound*greenWeight);
 
 		var env = Env.new([0,1,1,0],[0.1,0.8,0.1]*len);
-		var fsnd = intSound*env.kr()*amp;
-		Out.ar(out, [fsnd,fsnd]);
+		var valMuf = Env.new([lmuf,hmuf],[len]);
+		var fsnd = LPF.ar(intSound*env.kr()*amp,freq*valMuf.kr());
+		Out.ar(out, Pan2.ar(fsnd,pan));
 		DetectSilence.ar(fsnd, doneAction:2);
 	}
 	).add;
@@ -234,12 +223,46 @@ SynthDef(\convFX1,
 ).add;
 
 	// Process the xml into actual variables:
+	  // Python gets the clusters clusterFile[x]
 	  // Picking the 3 top hue clusters (HSV, position, radius)
 	  // H: Instrument type/waveform (RGB)
 	  // S: Fitering (LPF threshold)
-	  // V: the bass/hi-ness of the cluster
+	// V: the bass/hi-ness of the cluster (Octave)
 	  // Position: (x)Pan2 and (y)wet/dry of reverb
 	  // Entropy for tempo
+
+~clusterFile = CSVFileReader.readInterpret("csv_format.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
+
+	~r1 = ~clusterFile[0][0];
+	~g1 = ~clusterFile[0][1];
+	~b1 = ~clusterFile[0][2];
+	~ls1 = ~clusterFile[0][3];
+	~hs1 = ~clusterFile[0][4];
+	~lv1 = ~clusterFile[0][5];
+	~hv1 = ~clusterFile[0][6];
+	~pan1 = ~clusterFile[0][7];
+	~reverb1 = ~clusterFile[0][8];
+
+	~r2 = ~clusterFile[1][0];
+	~g2 = ~clusterFile[1][1];
+	~b2 = ~clusterFile[1][2];
+	~ls2 = ~clusterFile[1][3];
+	~hs2 = ~clusterFile[1][4];
+	~lv2 = ~clusterFile[1][5];
+	~hv2 = ~clusterFile[1][6];
+	~pan2 = ~clusterFile[1][7];
+	~reverb2 = ~clusterFile[1][8];
+
+	~r3 = ~clusterFile[2][0];
+	~g3 = ~clusterFile[2][1];
+	~b3 = ~clusterFile[2][2];
+	~ls3 = ~clusterFile[2][3];
+	~hs3 = ~clusterFile[2][4];
+	~lv3 = ~clusterFile[2][5];
+	~hv3 = ~clusterFile[2][6];
+	~pan3 = ~clusterFile[2][7];
+	~reverb3 = ~clusterFile[2][8];
+
 
 /*	// Testing what it'd be like to get a sound directly from the image FFT
 ~aRoll = CSVFileReader.readInterpret("spectrum_test.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true)[0];
@@ -258,9 +281,86 @@ SynthDef(\spec_test,
 
 // CREATE THE SOUNDSCAPE
 
-~tc = TempoClock.default;
-~tc.tempo = 139/60 //Something you gleam from the xvf info;
+~seqlibrary = [
+		[62, 55, 66],
+		[66, 69],
+		[55, 62]
+	];
+~speedlibrary = [
+		[1,1,1,1,1],
+		[0.5,0.5,0.5,0.5,0.5],
+		[1,0.5,1],
+		[1/3,1/3,1/3],
+		[0.5,1,0.5]
+	];
 
+~transposelibrary = [-12, -8, -7, -5, 0, 4, 5, 7, 12];
+
+~tc = TempoClock.default;
+~tc.tempo = 139/60; //Something you gleam from the xvf info;
+
+// Cluster 1 scheduler
+~tc.sched(0,
+	{
+		var transposeval = ~transposelibrary[rrand(~lv1,~hv1)];
+		var noteseq = ~seqlibrary.choose + transposeval;
+		var lnotes = noteseq.size;
+		var lenref = ~speedlibrary.choose;
+		var lens = Array.fill(lnotes, {|i| lenref[i%lnotes]});
+		var durs = lens.copy;
+		durs[lnotes-1] = durs[lnotes-1]+10;
+		"cluster 1 firing!".postln;
+		Pfx(Pseq([Pbind(
+			\instrument, \H_synth,
+			\red,Pseq([~r1],lnotes),
+			\green,Pseq([~g1],lnotes),
+			\blue,Pseq([~b1],lnotes),
+			\lmuf,Pseq([~ls1],lnotes),
+			\hmuf,Pseq([~hs1],lnotes),
+			\pan,Pseq([~pan1],lnotes),
+			\midinote,Pseq(noteseq),
+			\out,Pseq([21],lnotes),
+			\amp,Pseq([0.95],lnotes),
+			\dur,Pseq(durs),
+			\len,Pseq(lens))
+		],1),\convFX1).play;
+	rrand(10,20);
+});
+
+// Cluster 2 scheduler
+~tc.sched(rrand(10,30),
+	{
+		var transposeval = ~transposelibrary[rrand(~lv2,~hv2)];
+		var noteseq = ~seqlibrary.choose + transposeval;
+		var lnotes = noteseq.size;
+		var lenref = ~speedlibrary.choose;
+		var lens = Array.fill(lnotes, {|i| lenref[i%lnotes]});
+		var durs = lens.copy;
+		durs[lnotes-1] = durs[lnotes-1]+10;
+		"cluster 2 firing!".postln;
+		Pfx(Pseq([Pbind(
+			\instrument, \H_synth,
+			\red,Pseq([~r2],lnotes),
+			\green,Pseq([~g2],lnotes),
+			\blue,Pseq([~b2],lnotes),
+			\lmuf,Pseq([~ls2],lnotes),
+			\hmuf,Pseq([~hs2],lnotes),
+			\pan,Pseq([~pan2],lnotes),
+			\midinote,Pseq(noteseq),
+			\out,Pseq([25],lnotes),
+			\amp,Pseq([0.95],lnotes),
+			\dur,Pseq(durs),
+			\len,Pseq(lens))
+			],1),\convFX1,\in,25).play;
+	rrand(10,20);
+});
+
+// Cluster 3 scheduler
+/*~tc.sched(rrand(50,75),
+	{
+
+		rrand(50,75);
+});*/
 
 
 } // closing the waitforboot
@@ -269,11 +369,11 @@ SynthDef(\spec_test,
 
 
 s.freqscope;
-s.volume;
+ServerMeter.new(s,2,2)
 Synth(\convFX1);
 // Synth(\spec_test,[\amp, 0.75]);
 (
 // Synth(\steeldrum,[\out,21,\amp,4]);
 // Synth(\toy_piano,[\out,21,\amp,0.35]);
-Synth(\H_synth,[\green,10,\red,50,\blue,10,\out,21,\freq,400,\amp,1]);
+Synth(\H_synth,[\green,0,\red,0,\blue,10,\out,21,\freq,54.midicps,\amp,1]);
 )
