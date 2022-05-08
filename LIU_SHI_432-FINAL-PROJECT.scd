@@ -145,12 +145,25 @@ SynthDef(\H_synth, {
 		// Red is guitar-y (using pluck)
 		var redWeight = red / rgbTotal;
 
-		var ramod1 = Saw.ar(freq:0.25*freq, mul:0.5, add:0.5);
-		var rfmod1 = SinOsc.ar(freq:freq/2,mul:freq/10);
-		var rcarrier = LPF.ar(SinOsc.ar(freq:freq+rfmod1, mul:amp)*ramod1,freq*1.5);
+		var renv = Env.new([0,1,0.75,0.75,0],[0.1,0.1,0.7,0.1]*len);
 
-		var renv = Env.perc();
-		var redSound = (rcarrier)*renv.kr();
+		var rsnd1 = Pluck.ar( in: BrownNoise.ar(amp*2),
+        trig: Impulse.kr(0),
+        maxdelaytime: 0.1,
+		delaytime: (freq/2).reciprocal,
+        decaytime: len,
+        coef: 0.1);
+
+		var rsnd2 = Pluck.ar( in: PinkNoise.ar(amp*2),
+        trig: Impulse.kr(0),
+        maxdelaytime: 0.1,
+        delaytime: freq.reciprocal,
+        decaytime: len,
+        coef: 0.1);
+
+		var rcarrier = 0.5*(rsnd1 + rsnd2)*renv.kr();
+
+		var redSound = rcarrier;
 
 		// Green is growl
 
@@ -184,21 +197,23 @@ SynthDef(\H_synth, {
 	}
 	).add;
 
-// Testing this plucking sound I found on github
+// Testing pluck.ar for use in red
 SynthDef(\pluck, {
-		|amp = 0.1, freq = 212, len = 1, coef = 0.1|
-var env, snd;
-env = EnvGen.kr(Env.linen(0, len, 0));
-snd = Pluck.ar(
-        in: WhiteNoise.ar(amp),
+		|out = 0, amp = 0.1, freq = 212, len = 1, coef = 0.1|
+var env = EnvGen.kr(Env.linen(0, len, 0));
+var snd1 = Pluck.ar( in: BrownNoise.ar(amp/4),
         trig: Impulse.kr(0),
-
         maxdelaytime: 0.1,
         delaytime: freq.reciprocal,
         decaytime: len,
         coef: coef);
-    Out.ar(0, [snd, snd]);
-
+var snd2 = Pluck.ar( in: PinkNoise.ar(amp/4),
+        trig: Impulse.kr(0),
+        maxdelaytime: 0.1,
+        delaytime: freq.reciprocal,
+        decaytime: len,
+        coef: coef);
+    Out.ar(out, [snd1, snd2]);
 }).add;
 
 // Fiddly reverbers need to sync up with some impulse response buffer reading
@@ -230,15 +245,20 @@ SynthDef(\convFX1,
 
 // CREATE THE SOUNDSCAPE
 
+~tc = TempoClock.default;
+~tc.tempo = //Something you gleam from the xvf info;
+
+
+
 }
 )
 
-Synth(\pluck,[\freq,880,\coef,0.01])
+
 
 s.freqscope;
 Synth(\convFX1);
 (
 // Synth(\steeldrum,[\out,21,\amp,4]);
 // Synth(\toy_piano,[\out,21,\amp,0.35]);
-Synth(\H_synth,[\green,00,\red,00,\blue,100,\out,21]);
+Synth(\H_synth,[\green,100,\red,1000,\blue,100,\out,21,\freq,400]);
 )
