@@ -12,6 +12,7 @@
 */
 
 (
+s.options.memSize = 2.pow(20);
 s.waitForBoot {
 /* --- variables and user-inputs here */
 ~rbuf1 = Buffer.read(s, "./IMreverbs/Right Glass Triangle.wav".resolveRelative);
@@ -141,13 +142,15 @@ SynthDef(\H_synth, {
 
 		var blueWeight = blue / rgbTotal;
 
-		// Red is guitar-y
+		// Red is guitar-y (using pluck)
 		var redWeight = red / rgbTotal;
 
-		var ramod1 = SinOsc.ar(freq:0.5*freq, mul:0.5, add:0.5);
+		var ramod1 = Saw.ar(freq:0.25*freq, mul:0.5, add:0.5);
+		var rfmod1 = SinOsc.ar(freq:freq/2,mul:freq/10);
+		var rcarrier = LPF.ar(SinOsc.ar(freq:freq+rfmod1, mul:amp)*ramod1,freq*1.5);
 
-		var rcarrier = SinOsc.ar(freq:freq, mul:amp)*ramod1;
-		var redSound = rcarrier;
+		var renv = Env.perc();
+		var redSound = (rcarrier)*renv.kr();
 
 		// Green is growl
 
@@ -181,6 +184,23 @@ SynthDef(\H_synth, {
 	}
 	).add;
 
+// Testing this plucking sound I found on github
+SynthDef(\pluck, {
+		|amp = 0.1, freq = 212, len = 1, coef = 0.1|
+var env, snd;
+env = EnvGen.kr(Env.linen(0, len, 0));
+snd = Pluck.ar(
+        in: WhiteNoise.ar(amp),
+        trig: Impulse.kr(0),
+
+        maxdelaytime: 0.1,
+        delaytime: freq.reciprocal,
+        decaytime: len,
+        coef: coef);
+    Out.ar(0, [snd, snd]);
+
+}).add;
+
 // Fiddly reverbers need to sync up with some impulse response buffer reading
 	s.sync;
 
@@ -213,10 +233,12 @@ SynthDef(\convFX1,
 }
 )
 
+Synth(\pluck,[\freq,880,\coef,0.01])
 
+s.freqscope;
 Synth(\convFX1);
 (
 // Synth(\steeldrum,[\out,21,\amp,4]);
 // Synth(\toy_piano,[\out,21,\amp,0.35]);
-Synth(\H_synth,[\green,10,\red,0,\blue,00,\out,21])
+Synth(\H_synth,[\green,00,\red,00,\blue,100,\out,21]);
 )
