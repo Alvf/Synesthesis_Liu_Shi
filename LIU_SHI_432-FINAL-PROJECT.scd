@@ -110,7 +110,7 @@ SynthDef(\toy_piano, {
 ).add;
 // Hue to synth: the synth-ification of RGB
 SynthDef(\H_synth, {
-		|out = 0, amp = 0.75, freq = 520, red = 0.5, green = 0.5, blue = 0.5, len = 1|
+		|out = 0, amp = 0.75, freq = 520, red = 0.5, green = 0.5, blue = 0.5, len = 1, pan = 0.5|
 		var rgbTotal = red + green + blue;
 
 		// Blue is steeldrum
@@ -192,7 +192,7 @@ SynthDef(\H_synth, {
 
 		var env = Env.new([0,1,1,0],[0.1,0.8,0.1]*len);
 		var fsnd = intSound*env.kr()*amp;
-		Out.ar(out, fsnd);
+		Out.ar(out, [fsnd,fsnd]);
 		DetectSilence.ar(fsnd, doneAction:2);
 	}
 	).add;
@@ -235,30 +235,45 @@ SynthDef(\convFX1,
 
 	// Process the xml into actual variables:
 	  // Picking the 3 top hue clusters (HSV, position, radius)
-      // H: Instrument type/waveform
-      // S: Sound complexity/life (FM/Convolution/etc)
-      // V: Filter (hi-pass/lo-pass)
-      // Position: Pan2 and freeverb
-      // Variance: Wideness/reverb/panning ratios
+	  // H: Instrument type/waveform (RGB)
+	  // S: Fitering (LPF threshold)
+	  // V: the bass/hi-ness of the cluster
+	  // Position: (x)Pan2 and (y)wet/dry of reverb
+	  // Entropy for tempo
 
+/*	// Testing what it'd be like to get a sound directly from the image FFT
+~aRoll = CSVFileReader.readInterpret("spectrum_test.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true)[0];
+~aRoll;
 	s.sync;
+//Testing what just making a straight up ifft thing would sound like
+SynthDef(\spec_test,
+	{|freq = 520, amp = 0.35, out = 0|
+		var snd = Mix.fill(~aRoll.size,
+				{|i| SinOsc.ar(freq:freq*(i + 1),mul: ~aRoll[i].dbamp;)});
+		Out.ar(out, [snd, snd]);
+	}
+).add;*/
+
+
 
 // CREATE THE SOUNDSCAPE
 
 ~tc = TempoClock.default;
-~tc.tempo = //Something you gleam from the xvf info;
+~tc.tempo = 139/60 //Something you gleam from the xvf info;
 
 
 
-}
-)
+} // closing the waitforboot
+) // closing the big expression
 
 
 
 s.freqscope;
+s.volume;
 Synth(\convFX1);
+// Synth(\spec_test,[\amp, 0.75]);
 (
 // Synth(\steeldrum,[\out,21,\amp,4]);
 // Synth(\toy_piano,[\out,21,\amp,0.35]);
-Synth(\H_synth,[\green,100,\red,1000,\blue,100,\out,21,\freq,400]);
+Synth(\H_synth,[\green,10,\red,50,\blue,10,\out,21,\freq,400,\amp,1]);
 )
