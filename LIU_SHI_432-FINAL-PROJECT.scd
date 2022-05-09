@@ -229,9 +229,10 @@ SynthDef(\convFX1,
 	  // S: Fitering (LPF threshold)
 	  // V: the bass/hi-ness of the cluster (Octave)
 	  // Position: (x)Pan2 and (y)wet/dry of reverb
+	  // Cluster occupation: how much of the image each cluster occupies (determines firing rate for the cluster with some math)
 	  // Entropy (greyscale) for tempo; Entropy R, G, B for firing frequency
 
-~clusterFile = CSVFileReader.readInterpret("output_1.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
+~clusterFile = CSVFileReader.readInterpret("./data/test_3_output_1.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
 
 	~r1 = ~clusterFile[0][0];
 	~g1 = ~clusterFile[0][1];
@@ -242,6 +243,7 @@ SynthDef(\convFX1,
 	~hv1 = ~clusterFile[0][6];
 	~pan1 = ~clusterFile[0][7];
 	~reverb1 = ~clusterFile[0][8];
+	~t1 = 5/~clusterFile[0][9] + 10;
 
 	~r2 = ~clusterFile[1][0];
 	~g2 = ~clusterFile[1][1];
@@ -252,6 +254,7 @@ SynthDef(\convFX1,
 	~hv2 = ~clusterFile[1][6];
 	~pan2 = ~clusterFile[1][7];
 	~reverb2 = ~clusterFile[1][8];
+	~t2 = 5/~clusterFile[1][9] + 10;
 
 	~r3 = ~clusterFile[2][0];
 	~g3 = ~clusterFile[2][1];
@@ -262,8 +265,9 @@ SynthDef(\convFX1,
 	~hv3 = ~clusterFile[2][6];
 	~pan3 = ~clusterFile[2][7];
 	~reverb3 = ~clusterFile[2][8];
+	~t3 = 5/~clusterFile[2][9] + 10;
 
-~entropyFile = CSVFileReader.readInterpret("output_2.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
+~entropyFile = CSVFileReader.readInterpret("./data/test_3_output_2.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
 
 	~grayEnt = ~entropyFile[0][0];
 	~rEnt = ~entropyFile[0][1];
@@ -287,8 +291,17 @@ SynthDef(\spec_test,
 
 // CREATE THE SOUNDSCAPE
 
-// C Eb G A C (the "Ocarina of Time" notes) spanning two octaves centered at middle C
-~seqlibrary = [50, 53, 57, 59, 62, 65, 69, 71, 74];
+
+// spanning two octaves centered at middle C
+	~seqliblib = [
+		[50, 53, 57, 59, 62, 65, 69, 71, 74], // C Eb G A C (Ocarina of Time) [Forest]
+		[50, 54, 57, 61, 62, 66, 69, 73, 74], // C E G B C (V7M-ish) [Ocean]
+		[50, 52, 54, 57, 59, 62, 64, 66, 69, 71, 72], // C D E G A C (Pentatonic) [Glacier]
+		[50, 52, 55, 58, 62, 64, 67, 70, 74], // C D F G# C [Mountain]
+		Array.series(25,start:50,step:1)// Chromatic [Other]
+	];
+
+~seqlibrary = ~seqliblib.choose;
 // various speeds to pull
 ~speedlibrary = [1, 1/2, 1/4, 1/3];
 
@@ -321,7 +334,7 @@ SynthDef(\spec_test,
 			\dur,Pseq(durs),
 			\len,Pseq(lens))
 		],1),\convFX1,\mix,~reverb1).play;
-	rrand(10,20);
+	rrand(10,~t1); //firing rate determined by cluster size
 });
 
 // Cluster 2 scheduler
@@ -348,7 +361,7 @@ SynthDef(\spec_test,
 			\dur,Pseq(durs),
 			\len,Pseq(lens))
 		],1),\convFX1,\mix,~reverb2).play;
-	rrand(10,20); //frequency determined by color channel entropy
+	rrand(10,~t2); //firing rate determined by cluster size
 });
 
 // Cluster 3 scheduler
@@ -375,7 +388,7 @@ SynthDef(\spec_test,
 			\dur,Pseq(durs),
 			\len,Pseq(lens))
 		],1),\convFX1,\mix,~reverb3).play;
-	rrand(10,20); //frequency determined by color channel entropy
+	rrand(10,~t3); //firing rate determined by cluster size
 });
 
 
