@@ -227,11 +227,11 @@ SynthDef(\convFX1,
 	  // Picking the 3 top hue clusters (HSV, position, radius)
 	  // H: Instrument type/waveform (RGB)
 	  // S: Fitering (LPF threshold)
-	// V: the bass/hi-ness of the cluster (Octave)
+	  // V: the bass/hi-ness of the cluster (Octave)
 	  // Position: (x)Pan2 and (y)wet/dry of reverb
-	  // Entropy for tempo
+	  // Entropy (greyscale) for tempo; Entropy R, G, B for firing frequency
 
-~clusterFile = CSVFileReader.readInterpret("csv_format.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
+~clusterFile = CSVFileReader.readInterpret("output_1.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
 
 	~r1 = ~clusterFile[0][0];
 	~g1 = ~clusterFile[0][1];
@@ -263,6 +263,12 @@ SynthDef(\convFX1,
 	~pan3 = ~clusterFile[2][7];
 	~reverb3 = ~clusterFile[2][8];
 
+~entropyFile = CSVFileReader.readInterpret("output_2.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
+
+	~grayEnt = ~entropyFile[0][0];
+	~rEnt = ~entropyFile[0][1];
+	~gEnt = ~entropyFile[0][2];
+	~bEnt = ~entropyFile[0][3];
 
 /*	// Testing what it'd be like to get a sound directly from the image FFT
 ~aRoll = CSVFileReader.readInterpret("spectrum_test.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true)[0];
@@ -281,32 +287,23 @@ SynthDef(\spec_test,
 
 // CREATE THE SOUNDSCAPE
 
-~seqlibrary = [
-		[62, 55, 66],
-		[66, 69],
-		[55, 62]
-	];
-~speedlibrary = [
-		[1,1,1,1,1],
-		[0.5,0.5,0.5,0.5,0.5],
-		[1,0.5,1],
-		[1/3,1/3,1/3],
-		[0.5,1,0.5]
-	];
+// C Eb G A C (the "Ocarina of Time" notes) spanning two octaves centered at middle C
+~seqlibrary = [50, 53, 57, 59, 62, 65, 69, 71, 74];
+// various speeds to pull
+~speedlibrary = [1, 1/2, 1/4, 1/3];
 
 ~transposelibrary = [-12, -8, -7, -5, 0, 4, 5, 7, 12];
 
 ~tc = TempoClock.default;
-~tc.tempo = 139/60; //Something you gleam from the xvf info;
+~tc.tempo = ~grayEnt*100/15/60; //greyscale entropy value;
 
 // Cluster 1 scheduler
 ~tc.sched(0,
 	{
+		var lnotes = rrand(2, ~rEnt); //run len determined by color channel entropy
 		var transposeval = ~transposelibrary[rrand(~lv1,~hv1)];
-		var noteseq = ~seqlibrary.choose + transposeval;
-		var lnotes = noteseq.size;
-		var lenref = ~speedlibrary.choose;
-		var lens = Array.fill(lnotes, {|i| lenref[i%lnotes]});
+		var noteseq = Array.fill(lnotes, {~seqlibrary.choose}) + transposeval;
+		var lens = Array.fill(lnotes, {~speedlibrary.choose});
 		var durs = lens.copy;
 		durs[lnotes-1] = durs[lnotes-1]+10;
 		"cluster 1 firing!".postln;
@@ -315,26 +312,25 @@ SynthDef(\spec_test,
 			\red,Pseq([~r1],lnotes),
 			\green,Pseq([~g1],lnotes),
 			\blue,Pseq([~b1],lnotes),
-			\lmuf,Pseq([~ls1],lnotes),
-			\hmuf,Pseq([~hs1],lnotes),
+			\lmuf,Pseq([~ls1+6],lnotes),
+			\hmuf,Pseq([~hs1*10],lnotes),
 			\pan,Pseq([~pan1],lnotes),
 			\midinote,Pseq(noteseq),
 			\out,Pseq([21],lnotes),
-			\amp,Pseq([0.95],lnotes),
+			\amp,Pseq([0.45],lnotes),
 			\dur,Pseq(durs),
 			\len,Pseq(lens))
-		],1),\convFX1).play;
+		],1),\convFX1,\mix,~reverb1).play;
 	rrand(10,20);
 });
 
 // Cluster 2 scheduler
-~tc.sched(rrand(10,30),
+~tc.sched(rrand(0,10),
 	{
+		var lnotes = rrand(2, ~gEnt); //run len determined by color channel entropy
 		var transposeval = ~transposelibrary[rrand(~lv2,~hv2)];
-		var noteseq = ~seqlibrary.choose + transposeval;
-		var lnotes = noteseq.size;
-		var lenref = ~speedlibrary.choose;
-		var lens = Array.fill(lnotes, {|i| lenref[i%lnotes]});
+		var noteseq = Array.fill(lnotes, {~seqlibrary.choose}) + transposeval;
+		var lens = Array.fill(lnotes, {~speedlibrary.choose});
 		var durs = lens.copy;
 		durs[lnotes-1] = durs[lnotes-1]+10;
 		"cluster 2 firing!".postln;
@@ -343,24 +339,44 @@ SynthDef(\spec_test,
 			\red,Pseq([~r2],lnotes),
 			\green,Pseq([~g2],lnotes),
 			\blue,Pseq([~b2],lnotes),
-			\lmuf,Pseq([~ls2],lnotes),
-			\hmuf,Pseq([~hs2],lnotes),
+			\lmuf,Pseq([~ls2+6],lnotes),
+			\hmuf,Pseq([~hs2*10],lnotes),
 			\pan,Pseq([~pan2],lnotes),
 			\midinote,Pseq(noteseq),
-			\out,Pseq([25],lnotes),
-			\amp,Pseq([0.95],lnotes),
+			\out,Pseq([21],lnotes),
+			\amp,Pseq([0.45],lnotes),
 			\dur,Pseq(durs),
 			\len,Pseq(lens))
-			],1),\convFX1,\in,25).play;
-	rrand(10,20);
+		],1),\convFX1,\mix,~reverb2).play;
+	rrand(10,20); //frequency determined by color channel entropy
 });
 
 // Cluster 3 scheduler
-/*~tc.sched(rrand(50,75),
+~tc.sched(rrand(0,10),
 	{
-
-		rrand(50,75);
-});*/
+		var lnotes = rrand(2, ~bEnt); //run len determined by color channel entropy
+		var transposeval = ~transposelibrary[rrand(~lv3,~hv3)];
+		var noteseq = Array.fill(lnotes, {~seqlibrary.choose}) + transposeval;
+		var lens = Array.fill(lnotes, {~speedlibrary.choose});
+		var durs = lens.copy;
+		durs[lnotes-1] = durs[lnotes-1]+10;
+		"cluster 3 firing!".postln;
+		Pfx(Pseq([Pbind(
+			\instrument, \H_synth,
+			\red,Pseq([~r3],lnotes),
+			\green,Pseq([~g3],lnotes),
+			\blue,Pseq([~b3],lnotes),
+			\lmuf,Pseq([~ls3+6],lnotes),
+			\hmuf,Pseq([~hs3*10],lnotes),
+			\pan,Pseq([~pan3],lnotes),
+			\midinote,Pseq(noteseq),
+			\out,Pseq([21],lnotes),
+			\amp,Pseq([0.45],lnotes),
+			\dur,Pseq(durs),
+			\len,Pseq(lens))
+		],1),\convFX1,\mix,~reverb3).play;
+	rrand(10,20); //frequency determined by color channel entropy
+});
 
 
 } // closing the waitforboot
@@ -375,5 +391,5 @@ Synth(\convFX1);
 (
 // Synth(\steeldrum,[\out,21,\amp,4]);
 // Synth(\toy_piano,[\out,21,\amp,0.35]);
-Synth(\H_synth,[\green,0,\red,0,\blue,10,\out,21,\freq,54.midicps,\amp,1]);
+Synth(\H_synth,[\green,10,\red,10,\blue,0,\out,21,\freq,54.midicps,\amp,1]);
 )
