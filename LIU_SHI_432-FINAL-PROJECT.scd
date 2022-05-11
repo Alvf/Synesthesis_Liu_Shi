@@ -15,8 +15,12 @@
 s.options.memSize = 2.pow(20);
 s.waitForBoot {
 /* --- variables and user-inputs here */
-~rbuf1 = Buffer.read(s, "./IMreverbs/Right Glass Triangle.wav".resolveRelative);
-
+	~bufF = Buffer.read(s, "./IMreverbs/In The Silo.wav".resolveRelative); // Forest
+	~bufS = Buffer.read(s, "./IMreverbs/Right Glass Triangle.wav".resolveRelative); // Sea
+	~bufG = Buffer.read(s, "./IMreverbs/On a Star.wav".resolveRelative); // Glacier
+	~bufM = Buffer.read(s, "./IMreverbs/Parking Garage.wav".resolveRelative); // Mountain
+	~bufO = Buffer.read(s, "./IMreverbs/Masonic Lodge.wav".resolveRelative); // Other
+	~rbuf = [~bufF, ~bufS, ~bufG, ~bufM, ~bufO];
 
 /* --- SynthDefs and other asynchronous stuff (loading files to buffers, evaluating code in related .scd files) ---*/
 
@@ -179,7 +183,7 @@ SynthDef(\H_synth, {
 		var intSound = (blueSound*blueWeight) + (redSound*redWeight) + (greenSound*greenWeight);
 
 		var env = Env.new([0,1,1,0],[0.1,0.8,0.1]*len);
-		var valMuf = Env.new([lmuf,hmuf],[len]);
+		var valMuf = Env.new([lmuf,hmuf,lmuf],[0.5,0.5]*len);
 		var fsnd = LPF.ar(intSound*env.kr()*amp,freq*valMuf.kr());
 		Out.ar(out, Pan2.ar(fsnd,pan));
 		DetectSilence.ar(fsnd, doneAction:2);
@@ -204,23 +208,6 @@ var snd2 = Pluck.ar( in: PinkNoise.ar(amp/4),
         coef: coef);
     Out.ar(out, [snd1, snd2]);
 }).add;
-
-// Fiddly reverbers need to sync up with some impulse response buffer reading
-	s.sync;
-
-	~size1 = 2048;
-	~bufsize1 = PartConv.calcBufSize(~size1, ~rbuf1);
-	~irspec1 = Buffer.alloc(s, ~bufsize1, 2);
-	~irspec1.preparePartConv(~rbuf1, ~size1);
-SynthDef(\convFX1,
-	{|out = 0, in = 21, mix = 0.5|
-		var inSig = In.ar(in,2);
-		var sig = PartConv.ar(inSig, ~size1, ~irspec1, mix)*0.025;
-		var delay = 1 / (s.sampleRate / ~size1);
-		var delayed = DelayN.ar(inSig, delay, delay)*(1-mix);
-		Out.ar(out, [sig, delayed]);
-	}
-).add;
 
 	// Process the xml into actual variables:
 	  // Python gets the clusters clusterFile[x]
@@ -273,6 +260,23 @@ SynthDef(\convFX1,
 	~rEnt = ~entropyFile[0][1];
 	~gEnt = ~entropyFile[0][2];
 	~bEnt = ~entropyFile[0][3];
+	~rbuf1 = ~rbuf.choose; //Reverb dependent on semantic analysis.
+
+	s.sync;
+// Fiddly reverbers need to sync up with some impulse response buffer reading
+	~size1 = 2048;
+	~bufsize1 = PartConv.calcBufSize(~size1, ~rbuf1);
+	~irspec1 = Buffer.alloc(s, ~bufsize1, 2);
+	~irspec1.preparePartConv(~rbuf1, ~size1);
+SynthDef(\convFX1,
+	{|out = 0, in = 21, mix = 0.5|
+		var inSig = In.ar(in,2);
+		var sig = PartConv.ar(inSig, ~size1, ~irspec1, mix)*0.025;
+		var delay = 1 / (s.sampleRate / ~size1);
+		var delayed = DelayN.ar(inSig, delay, delay)*(1-mix);
+		Out.ar(out, [sig, delayed]);
+	}
+).add;
 
 /*	// Testing what it'd be like to get a sound directly from the image FFT
 ~aRoll = CSVFileReader.readInterpret("spectrum_test.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true)[0];
@@ -295,13 +299,13 @@ SynthDef(\spec_test,
 // spanning two octaves centered at middle C
 	~seqliblib = [
 		[50, 53, 57, 59, 62, 65, 69, 71, 74], // C Eb G A C (Ocarina of Time) [Forest]
-		[50, 54, 57, 61, 62, 66, 69, 73, 74], // C E G B C (V7M-ish) [Ocean]
+		[50, 54, 57, 61, 62, 66, 69, 73, 74], // C E G B C (V7M-ish) [Sea]
 		[50, 52, 54, 57, 59, 62, 64, 66, 69, 71, 72], // C D E G A C (Pentatonic) [Glacier]
 		[50, 52, 55, 58, 62, 64, 67, 70, 74], // C D F G# C [Mountain]
 		Array.series(25,start:50,step:1)// Chromatic [Other]
 	];
 
-~seqlibrary = ~seqliblib.choose;
+	~seqlibrary = ~seqliblib[4]; //notes depend on semantic analysis
 // various speeds to pull
 ~speedlibrary = [1, 1/2, 1/4, 1/3];
 
@@ -318,14 +322,14 @@ SynthDef(\spec_test,
 		var noteseq = Array.fill(lnotes, {~seqlibrary.choose}) + transposeval;
 		var lens = Array.fill(lnotes, {~speedlibrary.choose});
 		var durs = lens.copy;
-		durs[lnotes-1] = durs[lnotes-1]+10;
+		durs[lnotes-1] = durs[lnotes-1]+15;
 		"cluster 1 firing!".postln;
 		Pfx(Pseq([Pbind(
 			\instrument, \H_synth,
 			\red,Pseq([~r1],lnotes),
 			\green,Pseq([~g1],lnotes),
 			\blue,Pseq([~b1],lnotes),
-			\lmuf,Pseq([~ls1+6],lnotes),
+			\lmuf,Pseq([~ls1+1],lnotes),
 			\hmuf,Pseq([~hs1*10],lnotes),
 			\pan,Pseq([~pan1],lnotes),
 			\midinote,Pseq(noteseq),
@@ -345,14 +349,14 @@ SynthDef(\spec_test,
 		var noteseq = Array.fill(lnotes, {~seqlibrary.choose}) + transposeval;
 		var lens = Array.fill(lnotes, {~speedlibrary.choose});
 		var durs = lens.copy;
-		durs[lnotes-1] = durs[lnotes-1]+10;
+		durs[lnotes-1] = durs[lnotes-1]+15;
 		"cluster 2 firing!".postln;
 		Pfx(Pseq([Pbind(
 			\instrument, \H_synth,
 			\red,Pseq([~r2],lnotes),
 			\green,Pseq([~g2],lnotes),
 			\blue,Pseq([~b2],lnotes),
-			\lmuf,Pseq([~ls2+6],lnotes),
+			\lmuf,Pseq([~ls2+1],lnotes),
 			\hmuf,Pseq([~hs2*10],lnotes),
 			\pan,Pseq([~pan2],lnotes),
 			\midinote,Pseq(noteseq),
@@ -368,18 +372,18 @@ SynthDef(\spec_test,
 ~tc.sched(rrand(0,10),
 	{
 		var lnotes = rrand(2, ~bEnt); //run len determined by color channel entropy
-		var transposeval = ~transposelibrary[rrand(~lv3,~hv3)];
+			var transposeval = ~transposelibrary[rrand(~lv3,~hv3)];
 		var noteseq = Array.fill(lnotes, {~seqlibrary.choose}) + transposeval;
 		var lens = Array.fill(lnotes, {~speedlibrary.choose});
 		var durs = lens.copy;
-		durs[lnotes-1] = durs[lnotes-1]+10;
+		durs[lnotes-1] = durs[lnotes-1]+15;
 		"cluster 3 firing!".postln;
 		Pfx(Pseq([Pbind(
 			\instrument, \H_synth,
 			\red,Pseq([~r3],lnotes),
 			\green,Pseq([~g3],lnotes),
 			\blue,Pseq([~b3],lnotes),
-			\lmuf,Pseq([~ls3+6],lnotes),
+			\lmuf,Pseq([~ls3+1],lnotes),
 			\hmuf,Pseq([~hs3*10],lnotes),
 			\pan,Pseq([~pan3],lnotes),
 			\midinote,Pseq(noteseq),
@@ -404,5 +408,7 @@ Synth(\convFX1);
 (
 // Synth(\steeldrum,[\out,21,\amp,4]);
 // Synth(\toy_piano,[\out,21,\amp,0.35]);
-Synth(\H_synth,[\green,10,\red,10,\blue,0,\out,21,\freq,54.midicps,\amp,1]);
+Synth(\H_synth,[\green,0,\red,10,\blue,0,\out,21,\freq,54.midicps,\amp,1]);
+Synth(\H_synth,[\green,10,\red,0,\blue,0,\out,21,\freq,54.midicps,\amp,1]);
+Synth(\H_synth,[\green,0,\red,0,\blue,10,\out,21,\freq,54.midicps,\amp,1]);
 )
