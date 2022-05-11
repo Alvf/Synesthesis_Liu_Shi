@@ -219,7 +219,7 @@ var snd2 = Pluck.ar( in: PinkNoise.ar(amp/4),
 	  // Cluster occupation: how much of the image each cluster occupies (determines firing rate for the cluster with some math)
 	  // Entropy (greyscale) for tempo; Entropy R, G, B for firing frequency
 
-~clusterFile = CSVFileReader.readInterpret("./data/test_3_output_1.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
+~clusterFile = CSVFileReader.readInterpret("./data/test_2_output_1.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
 
 	~r1 = ~clusterFile[0][0];
 	~g1 = ~clusterFile[0][1];
@@ -254,13 +254,13 @@ var snd2 = Pluck.ar( in: PinkNoise.ar(amp/4),
 	~reverb3 = ~clusterFile[2][8];
 	~t3 = 5/~clusterFile[2][9] + 10;
 
-~entropyFile = CSVFileReader.readInterpret("./data/test_3_output_2.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
+~entropyFile = CSVFileReader.readInterpret("./data/test_2_output_2.csv".resolveRelative, startRow: 1, skipBlanks: true, skipEmptyLines: true);
 
 	~grayEnt = ~entropyFile[0][0];
 	~rEnt = ~entropyFile[0][1];
 	~gEnt = ~entropyFile[0][2];
 	~bEnt = ~entropyFile[0][3];
-	~rbuf1 = ~rbuf.choose; //Reverb dependent on semantic analysis.
+	~rbuf1 = ~rbuf.choose; //Reverb for user/just picked randomly.
 
 	s.sync;
 // Fiddly reverbers need to sync up with some impulse response buffer reading
@@ -305,7 +305,7 @@ SynthDef(\spec_test,
 		Array.series(25,start:50,step:1)// Chromatic [Other]
 	];
 
-	~seqlibrary = ~seqliblib[4]; //notes depend on semantic analysis
+	~seqlibrary = ~seqliblib.choose; //picks notes randomly or according to user
 // various speeds to pull
 ~speedlibrary = [1, 1/2, 1/4, 1/3];
 
@@ -393,7 +393,7 @@ SynthDef(\spec_test,
 			\len,Pseq(lens))
 		],1),\convFX1,\mix,~reverb3).play;
 	rrand(10,~t3); //firing rate determined by cluster size
-});
+	});
 
 
 } // closing the waitforboot
