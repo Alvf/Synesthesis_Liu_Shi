@@ -29,7 +29,7 @@ SynthDef(\H_synth, {
 		|out = 0, amp = 0.75, freq = 520, red = 0.5, green = 0.5, blue = 0.5, len = 1, pan = 0.5, lmuf = 6, hmuf = 6|
 		var rgbTotal = red + green + blue;
 
-		// Blue is steeldrum
+		// Blue is steeldrum fiddling
 
 		// clink sound
 		var fmod11 = SinOsc.ar(freq:10*freq, mul:freq*10);
